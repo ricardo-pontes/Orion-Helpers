@@ -11,14 +11,27 @@ type
   TObjectHelper = class helper for TObject
   private
     procedure ObjectToObject(aSource, aTarget : TObject);
-    procedure ClearObject(aObject: TObject);
+    procedure InternalClearObject(aObject: TObject);
   public
     procedure FromObject(aObject: TObject; aFreeAfterFinish : boolean = True);
+    procedure ClearObject;
   end;
 
 implementation
 
 { TObjectHelper }
+
+procedure TObjectHelper.ClearObject;
+begin
+  if not Assigned(Self) then
+    Exit;
+
+  if (Self.ClassName.Contains('TObjectList<')) then
+    TObjectList<TObject>(Self).Clear
+  else
+    InternalClearObject(Self);
+
+end;
 
 procedure TObjectHelper.FromObject(aObject: TObject; aFreeAfterFinish : boolean = True);
 var
@@ -33,7 +46,7 @@ begin
   if (aObject.ClassName.Contains('TObjectList<')) then
     TObjectList<TObject>(Self).Clear
   else
-    ClearObject(Self);
+    InternalClearObject(Self);
 
   if (aObject.ClassName.Contains('TObjectList<')) and (Self.ClassName.Contains('TObjectList<')) then begin
     TObjectList<TObject>(Self).Clear;
@@ -50,7 +63,7 @@ begin
     aObject.DisposeOf;
 end;
 
-procedure TObjectHelper.ClearObject(aObject: TObject);
+procedure TObjectHelper.InternalClearObject(aObject: TObject);
 var
   RttiProperty: TRttiProperty;
   RttiType : TRttiType;
@@ -72,7 +85,7 @@ begin
           if RttiProperty.GetValue(Pointer(aObject)).AsObject.ClassName.Contains('TObjectList<') then
             TObjectList<TObject>(RttiProperty.GetValue(Pointer(aObject)).AsObject).Clear
           else
-            ClearObject(RttiProperty.GetValue(Pointer(aObject)).AsObject);
+            InternalClearObject(RttiProperty.GetValue(Pointer(aObject)).AsObject);
         end;
         tkMethod: ;
         tkWChar: RttiProperty.SetValue(Pointer(aObject), '');
