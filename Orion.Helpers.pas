@@ -352,10 +352,10 @@ begin
       tkClass: begin
         if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then begin
           TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject).Clear;
-          SetValueToObjectList(lPairValue.Value, TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject));
+          SetValueToObjectList(lPairValue.ToString, TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject));
         end
         else
-          lProperty.GetValue(Pointer(Self)).AsObject.FromJSON(lPairValue.Value);
+          lProperty.GetValue(Pointer(Self)).AsObject.FromJSON(lPairValue.ToString);
       end;
       tkMethod: ;
       tkVariant: ;
