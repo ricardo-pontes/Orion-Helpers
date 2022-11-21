@@ -326,6 +326,9 @@ begin
   if not Assigned(lPairValue) then
     Exit;
 
+  if not lProperty.IsWritable then
+    Exit;
+
   try
     case lProperty.PropertyType.TypeKind of
       tkInteger: lProperty.SetValue(Pointer(Self), lPairValue.Value.ToInteger);
