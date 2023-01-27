@@ -1,13 +1,13 @@
 unit Orion.Helpers;
-
 interface
-
 uses
   System.SysUtils,
   System.Generics.Collections,
   System.Rtti,
-  System.JSON;
-
+  System.JSON,
+  System.DateUtils,
+  System.Classes,
+  System.NetEncoding;
 type
   TObjectHelper = class helper for TObject
   private
@@ -29,23 +29,17 @@ type
     function ToJSONObject : TJSONObject;
     function ToJSONArray : TJSONArray;
   end;
-
 implementation
-
 { TObjectHelper }
-
 procedure TObjectHelper.ClearObject;
 begin
   if not Assigned(Self) then
     Exit;
-
   if (Self.ClassName.Contains('TObjectList<')) then
     TObjectList<TObject>(Self).Clear
   else
     InternalClearObject(Self);
-
 end;
-
 procedure TObjectHelper.FromJSON(aValue: string);
 var
   lJson : TJSONValue;
@@ -67,14 +61,12 @@ begin
         TObjectList<TObject>(Self).Clear;
         SetValueToObjectList(lJson.ToJSON, TObjectList<TObject>(Self));
       end;
-
     end;
   finally
     FreeAndNil(lJson);
     FreeAndNil(lType);
   end;
 end;
-
 procedure TObjectHelper.FromJSON(aValue: TJSONObject);
 var
   lContext : TRttiContext;
@@ -91,7 +83,6 @@ begin
     FreeAndNil(lType);
   end;
 end;
-
 procedure TObjectHelper.FromJSON(aValue: TJSONArray);
 var
   lContext : TRttiContext;
@@ -108,22 +99,18 @@ begin
     FreeAndNil(lType);
   end;
 end;
-
 procedure TObjectHelper.FromObject(aObject: TObject; aFreeAfterFinish : boolean = True);
 var
   lObject: TObject;
 begin
   if not Assigned(Self) then
     Exit;
-
   if not Assigned(aObject) then
     Exit;
-
   if (aObject.ClassName.Contains('TObjectList<')) then
     TObjectList<TObject>(Self).Clear
   else
     InternalClearObject(Self);
-
   if (aObject.ClassName.Contains('TObjectList<')) and (Self.ClassName.Contains('TObjectList<')) then begin
     TObjectList<TObject>(Self).Clear;
     TObjectList<TObject>(aObject).OwnsObjects := False;
@@ -134,11 +121,9 @@ begin
   else if (aObject.ClassName = Self.ClassName) then begin
     ObjectToObject(aObject, Self);
   end;
-
   if aFreeAfterFinish then
     aObject.DisposeOf;
 end;
-
 function TObjectHelper.GetObjectInstance(aList: TObjectList<TObject>): TObject;
 var
   lContext : TRttiContext;
@@ -146,11 +131,15 @@ var
   lTypeName : string;
   lMethodType : TRttiMethod;
   lMetaClass : TClass;
+  Obj: TObject;
 begin
-  lContext := TRttiContext.Create;
-  lTypeName := Copy(aList.QualifiedClassName, 41, aList.QualifiedClassName.Length-41);
-  lType := lContext.FindType(lTypeName);
-  lMetaClass := nil;
+  lContext.Free;
+  lTypeName   := '';
+  lType       := nil;
+  lContext    := TRttiContext.Create;
+  lTypeName   := Copy(aList.QualifiedClassName, 41, aList.QualifiedClassName.Length-41);
+  lType       := lContext.FindType(lTypeName);
+  lMetaClass  := nil;
   lMethodType := nil;
   if Assigned(lType) then begin
     for lMethodType in lType.GetMethods do begin
@@ -160,8 +149,9 @@ begin
       end;
     end;
   end;
-
-  Result := lMethodType.Invoke(lMetaClass, []).AsObject;
+  Result := nil;
+  Result := lMetaClass.NewInstance;
+//  Result := lMethodType.Invoke(lMetaClass, []).AsObject;
 end;
 
 procedure TObjectHelper.GetPairValue(var lPairValue: TJSONValue; aJson: TJSONObject; lProperty: TRttiProperty);
@@ -176,7 +166,6 @@ begin
     lPairValue := aJson.FindValue(lCamelCasePairName);
   end;
 end;
-
 procedure TObjectHelper.InternalClearObject(aObject: TObject);
 var
   RttiProperty: TRttiProperty;
@@ -222,7 +211,6 @@ begin
     RttiType.DisposeOf;
   end;
 end;
-
 procedure TObjectHelper.ObjectToObject(aSource, aTarget: TObject);
 var
   RttiContextSource : TRttiContext;
@@ -259,19 +247,21 @@ begin
     RttiTypeSource.DisposeOf;
   end;
 end;
-
 procedure TObjectHelper.SetValueToJson(lProperty: TRttiProperty; var aJson: TJSONObject);
 var
   lJsonArray : TJSONArray;
+  StreamInput : TStream;
+  StreamOutput : TStringStream;
 begin
   case lProperty.PropertyType.TypeKind of
     tkUnknown: ;
     tkInteger: aJson.AddPair(lProperty.Name, lProperty.GetValue(Pointer(Self)).AsInteger);
     tkChar: aJson.AddPair(lProperty.Name, lProperty.GetValue(Pointer(Self)).AsString);
     tkEnumeration: aJson.AddPair(lProperty.Name, lProperty.GetValue(Pointer(Self)).AsBoolean);
-    tkFloat: begin
+    tkFloat:
+    begin
       if lProperty.PropertyType.QualifiedName.Contains('TDateTime') then
-        aJson.AddPair(lProperty.Name, DateTimeToStr(lProperty.GetValue(Pointer(Self)).AsExtended))
+        aJson.AddPair(lProperty.Name, DateToISO8601(lProperty.GetValue(Pointer(Self)).AsExtended))
       else
         aJson.AddPair(lProperty.Name, lProperty.GetValue(Pointer(Self)).AsExtended);
     end;
@@ -288,6 +278,18 @@ begin
         SetValueToJsonArray(TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject), lJsonArray);
         aJson.AddPair(lProperty.Name, lJsonArray);
       end
+      else if lProperty.GetValue(Pointer(Self)).AsObject.InheritsFrom(TStream) then begin
+        StreamInput := lProperty.GetValue(Pointer(Self)).AsType<TStream>;
+        StreamInput.Position := 0;
+        StreamOutput := TStringStream.Create;
+        try
+          StreamOutput.LoadFromStream(StreamInput);
+          aJson.AddPair(lProperty.Name, StreamOutput.DataString);
+        finally
+          StreamOutput.DisposeOf;
+        end;
+      end
+
       else begin
         aJson.AddPair(lProperty.Name, lProperty.GetValue(Pointer(Self)).AsObject.ToJSONObject);
       end;
@@ -304,7 +306,6 @@ begin
     tkMRecord: ;
   end;
 end;
-
 procedure TObjectHelper.SetValueToJsonArray(aObjectList: TObjectList<TObject>; var aJson: TJSONArray);
 var
   lJsonObject : TJSONObject;
@@ -315,20 +316,17 @@ begin
     aJson.Add(lJsonObject);
   end;
 end;
-
 procedure TObjectHelper.SetValueToObject(lProperty: TRttiProperty; aJson: TJSONObject);
 var
   lPairValue : TJSONValue;
+  Stream : TStringStream;
 begin
   lPairValue := nil;
   GetPairValue(lPairValue, aJson, lProperty);
-
   if not Assigned(lPairValue) then
     Exit;
-
   if not lProperty.IsWritable then
     Exit;
-
   try
     case lProperty.PropertyType.TypeKind of
       tkInteger: lProperty.SetValue(Pointer(Self), lPairValue.Value.ToInteger);
@@ -337,9 +335,10 @@ begin
         if lProperty.PropertyType.QualifiedName.Contains('Boolean') then
           lProperty.SetValue(Pointer(Self), lPairValue.Value.ToBoolean);
       end;
-      tkFloat: begin
+      tkFloat:
+        begin
         if lProperty.PropertyType.QualifiedName.Contains('TDateTime') then
-          lProperty.SetValue(Pointer(Self), StrToDateTime(lPairValue.Value))
+          lProperty.SetValue(Pointer(Self), ISO8601ToDate(lPairValue.Value))
         else
           lProperty.SetValue(Pointer(Self), StrToFloat(lPairValue.Value.Replace('.', ',', [rfReplaceAll])));
       end;
@@ -353,9 +352,24 @@ begin
       tkUnknown: ;
       tkSet: ;
       tkClass: begin
-        if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then begin
+        if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then
+        begin
           TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject).Clear;
           SetValueToObjectList(lPairValue.ToString, TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject));
+        end
+        else if lProperty.GetValue(Pointer(Self)).AsObject.InheritsFrom(TStream) then
+        begin
+          Stream := TStringStream.Create(lPairValue.Value);
+          try
+            if lProperty.GetValue(Pointer(Self)).AsObject is TStringStream then
+              TStringStream(lProperty.GetValue(Pointer(Self)).AsObject).LoadFromStream(Stream)
+            else if lProperty.GetValue(Pointer(Self)).AsObject is TMemoryStream then
+              TMemoryStream(lProperty.GetValue(Pointer(Self)).AsObject).LoadFromStream(Stream);
+
+            TStream(lProperty.GetValue(Pointer(Self)).AsObject).Position := 0;
+          finally
+            Stream.DisposeOf;
+          end;
         end
         else
           lProperty.GetValue(Pointer(Self)).AsObject.FromJSON(lPairValue.ToString);
@@ -373,7 +387,6 @@ begin
   finally
   end;
 end;
-
 procedure TObjectHelper.SetValueToObjectList(aValue: string; aList: TObjectList<TObject>);
 var
   I: Integer;
@@ -394,7 +407,6 @@ begin
     FreeAndNil(lJsonArray);
   end;
 end;
-
 function TObjectHelper.ToJSONArray: TJSONArray;
 var
   lJsonArray : TJSONArray;
@@ -402,12 +414,10 @@ begin
   Result := nil;
   if not Self.QualifiedClassName.Contains('TObjectList<') then
     Exit;
-
   lJsonArray := TJSONArray.Create;
   SetValueToJsonArray(TObjectList<TObject>(Self), lJsonArray);
   Result := lJsonArray;
 end;
-
 function TObjectHelper.ToJSONObject: TJSONObject;
 var
   lContext : TRttiContext;
@@ -425,7 +435,6 @@ begin
     FreeAndNil(lType);
   end;
 end;
-
 function TObjectHelper.ToJSONString(aPretty: boolean): string;
 var
   lJson : TJSONObject;
@@ -455,5 +464,4 @@ begin
     end;
   end;
 end;
-
 end.
