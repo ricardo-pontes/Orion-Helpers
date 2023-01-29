@@ -351,13 +351,14 @@ begin
       tkDynArray: ;
       tkUnknown: ;
       tkSet: ;
-      tkClass: begin
+      tkClass:
+      begin
         if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then
         begin
           TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject).Clear;
           SetValueToObjectList(lPairValue.ToString, TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject));
         end
-        else if lProperty.GetValue(Pointer(Self)).AsObject.InheritsFrom(TStream) then
+        else if (lProperty.PropertyType.QualifiedName.Contains('Stream')) and not (lPairValue.Value.IsEmpty) then
         begin
           Stream := TStringStream.Create(lPairValue.Value);
           try
@@ -371,7 +372,7 @@ begin
             Stream.DisposeOf;
           end;
         end
-        else
+        else if not (lPairValue.Value.IsEmpty) then
           lProperty.GetValue(Pointer(Self)).AsObject.FromJSON(lPairValue.ToString);
       end;
       tkMethod: ;
