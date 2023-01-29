@@ -11,12 +11,12 @@ uses
 type
   TObjectHelper = class helper for TObject
   private
-    function GetObjectInstance(aList: TObjectList<TObject>): TObject;
+    function GetObjectInstance(aQualifiedClassName : string) : TObject; overload;
     procedure SetValueToObject(lProperty : TRttiProperty; aJson : TJSONObject);
+    procedure SetValueToObjectList(aValue: string; aList : TObjectList<TObject>);
     procedure SetValueToJson(lProperty : TRttiProperty; var aJson : TJSONObject);
     procedure SetValueToJsonArray(aObjectList: TObjectList<TObject>; var aJson: TJSONArray);
     procedure GetPairValue(var lPairValue: TJSONValue; aJson: TJSONObject; lProperty: TRttiProperty);
-    procedure SetValueToObjectList(aValue: string; aList : TObjectList<TObject>);
     procedure ObjectToObject(aSource, aTarget : TObject);
     procedure InternalClearObject(aObject: TObject);
   public
@@ -124,21 +124,19 @@ begin
   if aFreeAfterFinish then
     aObject.DisposeOf;
 end;
-function TObjectHelper.GetObjectInstance(aList: TObjectList<TObject>): TObject;
+
+function TObjectHelper.GetObjectInstance(aQualifiedClassName: string): TObject;
 var
   lContext : TRttiContext;
   lType : TRttiType;
-  lTypeName : string;
   lMethodType : TRttiMethod;
   lMetaClass : TClass;
   Obj: TObject;
 begin
   lContext.Free;
-  lTypeName   := '';
   lType       := nil;
   lContext    := TRttiContext.Create;
-  lTypeName   := Copy(aList.QualifiedClassName, 41, aList.QualifiedClassName.Length-41);
-  lType       := lContext.FindType(lTypeName);
+  lType       := lContext.FindType(aQualifiedClassName);
   lMetaClass  := nil;
   lMethodType := nil;
   if Assigned(lType) then begin
@@ -150,8 +148,8 @@ begin
     end;
   end;
   Result := nil;
-  Result := lMetaClass.NewInstance;
-//  Result := lMethodType.Invoke(lMetaClass, []).AsObject;
+//  Result := lMetaClass.NewInstance;
+  Result := lMethodType.Invoke(lMetaClass, []).AsObject;
 end;
 
 procedure TObjectHelper.GetPairValue(var lPairValue: TJSONValue; aJson: TJSONObject; lProperty: TRttiProperty);
@@ -353,13 +351,11 @@ begin
       tkSet: ;
       tkClass:
       begin
-        if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then
-        begin
+        if lProperty.PropertyType.QualifiedName.Contains('TObjectList<') then begin
           TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject).Clear;
           SetValueToObjectList(lPairValue.ToString, TObjectList<TObject>(lProperty.GetValue(Pointer(Self)).AsObject));
         end
-        else if (lProperty.PropertyType.QualifiedName.Contains('Stream')) and not (lPairValue.Value.IsEmpty) then
-        begin
+        else if (lProperty.PropertyType.QualifiedName.Contains('Stream')) and not (lPairValue.Value.IsEmpty) then begin
           Stream := TStringStream.Create(lPairValue.Value);
           try
             if lProperty.GetValue(Pointer(Self)).AsObject is TStringStream then
@@ -393,14 +389,16 @@ var
   I: Integer;
   lObject: TObject;
   lJsonArray : TJSONArray;
+  QualifiedClassName : string;
 begin
   lJsonArray := TJSONArray.ParseJSONValue(aValue) as TJSONArray;
   if not Assigned(lJsonArray) then
     Exit;
   try
+    QualifiedClassName := Copy(aList.QualifiedClassName, 41, aList.QualifiedClassName.Length-41);
     for I := 0 to Pred(lJsonArray.Count) do
     begin
-      lObject := GetObjectInstance(aList);
+      lObject := GetObjectInstance(QualifiedClassName);
       lObject.FromJSON(TJSONObject(lJsonArray.Items[i]));
       aList.Add(lObject);
     end;
