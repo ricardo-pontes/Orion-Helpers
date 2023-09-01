@@ -334,11 +334,12 @@ begin
           lProperty.SetValue(Pointer(Self), lPairValue.Value.ToBoolean);
       end;
       tkFloat:
-        begin
-        if lProperty.PropertyType.QualifiedName.Contains('TDateTime') then
-          lProperty.SetValue(Pointer(Self), ISO8601ToDate(lPairValue.Value))
-        else
-          lProperty.SetValue(Pointer(Self), StrToFloat(lPairValue.Value.Replace('.', ',', [rfReplaceAll])));
+          begin
+            if FormatSettings.CurrencyString = 'R$' then
+              lProperty.SetValue(Pointer(Self), StrToFloat(lPairValue.Value.Replace('.', ',', [rfReplaceAll])))
+            else
+              lProperty.SetValue(Pointer(Self), StrToFloat(lPairValue.Value.Replace(',', '.', [rfReplaceAll])));
+          end;
       end;
       tkString: lProperty.SetValue(Pointer(Self), lPairValue.Value);
       tkWChar: lProperty.SetValue(Pointer(Self), lPairValue.Value);
