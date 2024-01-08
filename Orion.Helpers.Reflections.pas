@@ -496,7 +496,8 @@ begin
       end;
       Continue;
     end;
-    RttiPropertyTarget.SetValue(Pointer(aTarget), RttiPropertySource.GetValue(Pointer(aSource)));
+    if RttiPropertyTarget.IsWritable then
+      RttiPropertyTarget.SetValue(Pointer(aTarget), RttiPropertySource.GetValue(Pointer(aSource)));
   end;
 end;
 
