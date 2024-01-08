@@ -121,7 +121,7 @@ var
 begin
   Reflections := TOrionReflections.Create;
   try
-
+    Reflections.ObjectToObject(aObject, Self);
   finally
     FreeAndNil(Reflections);
   end;
