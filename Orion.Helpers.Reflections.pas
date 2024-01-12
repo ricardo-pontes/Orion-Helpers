@@ -21,7 +21,6 @@ type
   TOrionReflections = class
   private
     procedure ClearObject(aObject : TObject);
-    procedure InternalClearObject(aObject: TObject);
     function isDate(aProperty : TRttiProperty) : boolean;
     function isCollection(aRttiProperty : TRttiProperty; aObject : TObject) : boolean;
     function GetProperty(aObject : TObject; aEntityFieldName : string) : TGetProperty;
@@ -41,6 +40,7 @@ type
     function GetObject(aObject : TObject; aObjectName : string) : TObject;
     function GetObjectInstance(aList: TObjectList<TObject>): TObject;
     procedure IncCollectionInJsonObject(aCollection: TObject; aCollectionName : string; aJSONObject :TJSONObject);
+    procedure InternalClearObject(aObject: TObject);
     procedure JSONObjectToObject(aJSONObject : TJSONObject; aObject : TObject);
     procedure ObjectToObject(aSource, aTarget: TObject);
     function StreamFromBase64(aStream : TStream) : string;

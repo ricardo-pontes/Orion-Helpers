@@ -118,13 +118,39 @@ end;
 procedure TOrionHelper.FromObject(aObject: TObject; aFreeAfterFinish: boolean);
 var
   Reflections : TOrionReflections;
+  lObject: TObject;
 begin
   Reflections := TOrionReflections.Create;
   try
-    Reflections.ObjectToObject(aObject, Self);
+    if not Assigned(Self) then
+      Exit;
+    if not Assigned(aObject) then
+      Exit;
+    if (aObject.ClassName.Contains('TObjectList<')) then
+      TObjectList<TObject>(Self).Clear
+    else
+      Reflections.InternalClearObject(Self);
+    if (aObject.ClassName.Contains('TObjectList<')) and (Self.ClassName.Contains('TObjectList<')) then
+    begin
+      TObjectList<TObject>(Self).Clear;
+      TObjectList<TObject>(aObject).OwnsObjects := False;
+      for lObject in TObjectList<TObject>(aObject) do
+        TObjectList<TObject>(Self).Add(lObject);
+    end
+    else if (aObject.ClassName = Self.ClassName) then
+      Reflections.ObjectToObject(aObject, Self);
+    if aFreeAfterFinish then
+      aObject.DisposeOf;
   finally
     FreeAndNil(Reflections);
   end;
+
+//  Reflections := TOrionReflections.Create;
+//  try
+//    Reflections.ObjectToObject(aObject, Self);
+//  finally
+//    FreeAndNil(Reflections);
+//  end;
 end;
 
 function TOrionHelper.ToJSONArray: TJSONArray;
