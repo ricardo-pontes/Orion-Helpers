@@ -3,6 +3,7 @@ unit Orion.Helpers;
 interface
 
 uses
+  System.Rtti,
   System.JSON,
   System.SysUtils,
   System.Classes,
@@ -14,6 +15,10 @@ type
   private
 
   public
+    {TObjectListHelper}
+    function ContainsItemByFieldValue<T>(aItemFieldName : string; aValue : T) : boolean;
+    function GetCopyOfItemByKey<T: class, constructor>(aKeyFieldName : string; aKeyValue : TValue) : T;
+    {TObjectHelper}
     function ToJSONObject : TJSONObject; overload;
     function ToJSONArray : TJSONArray;
     function ToJSONString(aPretty : boolean = False) : string; overload;
@@ -104,6 +109,29 @@ begin
   end;
 end;
 
+function TOrionHelper.ContainsItemByFieldValue<T>(aItemFieldName: string; aValue: T): boolean;
+begin
+  var Reflections := TOrionReflections.Create;
+  try
+    Result := False;  
+    if not (Self.ClassName.ToUpper.Contains('TOBJECTLIST<')) then
+      Exit;
+
+    for var Obj in TObjectList<TObject>(Self) do
+    begin
+      var RttiProperty := Reflections.GetProperty(Obj, aItemFieldName);
+      if RttiProperty.Prop.GetValue(Obj).AsType<T> = aValue then
+      begin
+        Result := True;
+        Exit;
+      end;
+      
+    end;  
+  finally
+    Reflections.Free;
+  end;
+end;
+
 procedure TOrionHelper.FromJSON(aJSONString: string);
 var
   JSONValue : TJSONValue;
@@ -151,6 +179,29 @@ begin
 //  finally
 //    FreeAndNil(Reflections);
 //  end;
+end;
+
+function TOrionHelper.GetCopyOfItemByKey<T>(aKeyFieldName: string; aKeyValue: TValue): T;
+begin
+  var Reflections := TOrionReflections.Create;
+  try
+    if not (Self.ClassName.ToUpper.Contains('TOBJECTLIST<')) then
+      Exit;
+
+    for var Obj in TObjectList<TObject>(Self) do
+    begin
+      var RttiProperty := Reflections.GetProperty(Obj, aKeyFieldName);
+      if RttiProperty.Prop.GetValue(Obj).ToString = aKeyValue.ToString then
+      begin
+        Result := T.Create;
+        Result.FromObject(Obj, False);
+        Exit;
+      end;
+      
+    end;  
+  finally
+    Reflections.Free;
+  end;
 end;
 
 function TOrionHelper.ToJSONArray: TJSONArray;

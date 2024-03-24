@@ -19,10 +19,15 @@ type
     Button2: TButton;
     Button3: TButton;
     Button4: TButton;
+    Button5: TButton;
+    Button6: TButton;
+    Edit1: TEdit;
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
+    procedure Button5Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -163,6 +168,82 @@ begin
     end;
     Persons.FromJSON(PersonedJSONArray);
     Memo1.Text := Persons.ToJSONString(True);
+  finally
+    FreeAndNil(Persons);
+  end;
+end;
+
+procedure TForm1.Button5Click(Sender: TObject);
+var
+  Persons : TObjectList<TPerson>;
+  Person : TPerson;
+  Contact : TContact;
+  I : integer;
+begin
+  Persons := TObjectList<TPerson>.Create;
+  try
+    for I := 1 to 1000 do
+    begin
+      Person := TPerson.Create;
+      Person.ID := I;
+      Person.Name := 'Test' + I.ToString;
+      Person.Active := True;
+      Person.Salary := 5500.69;
+      Person.BirthDate := StrToDate('24/06/1987');
+      Person.Address.Street := 'Rua ' + i.ToString;
+      Person.Address.Neighborhood := 'Neighborhood ' + i.ToString;
+      Person.Address.City := 'City ' + i.ToString;
+
+      Contact := TContact.Create;
+      Contact.ID := I;
+      Contact.Description := 'Contact ' + I.ToString;
+      Person.Contacts.Add(Contact);
+      Persons.Add(Person);
+    end;
+
+    if Persons.ContainsItemByFieldValue<integer>('ID', StrToInt(Edit1.Text)) then
+      Memo1.Text := 'True'
+    else
+      Memo1.Text := 'False'
+  finally
+    FreeAndNil(Persons);
+  end;
+end;
+
+procedure TForm1.Button6Click(Sender: TObject);
+var
+  Persons : TObjectList<TPerson>;
+  Person : TPerson;
+  Contact : TContact;
+  I : integer;
+begin
+  Persons := TObjectList<TPerson>.Create;
+  try
+    for I := 1 to 1000 do
+    begin
+      Person := TPerson.Create;
+      Person.ID := I;
+      Person.Name := 'Test' + I.ToString;
+      Person.Active := True;
+      Person.Salary := 5500.69;
+      Person.BirthDate := StrToDate('24/06/1987');
+      Person.Address.Street := 'Rua ' + i.ToString;
+      Person.Address.Neighborhood := 'Neighborhood ' + i.ToString;
+      Person.Address.City := 'City ' + i.ToString;
+
+      Contact := TContact.Create;
+      Contact.ID := I;
+      Contact.Description := 'Contact ' + I.ToString;
+      Person.Contacts.Add(Contact);
+      Persons.Add(Person);
+    end;
+
+    var FoundedPerson := Persons.GetCopyOfItemByKey<TPerson>('ID', Edit1.Text);
+    try
+      Memo1.Text := FoundedPerson.ToJSONString(True);
+    finally
+      FoundedPerson.Free;
+    end;
   finally
     FreeAndNil(Persons);
   end;

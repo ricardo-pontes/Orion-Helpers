@@ -23,7 +23,7 @@ type
     procedure ClearObject(aObject : TObject);
     function isDate(aProperty : TRttiProperty) : boolean;
     function isCollection(aRttiProperty : TRttiProperty; aObject : TObject) : boolean;
-    function GetProperty(aObject : TObject; aEntityFieldName : string) : TGetProperty;
+
   public
     procedure Base64FromStream(aBase64 : string; aStream : TStream);
     function CreateClass(aClassType : TClass): TObject; overload;
@@ -39,6 +39,7 @@ type
     function GetObjects(aObject : TJSONObject) : TDictionary<string, TJSONObject>; overload;
     function GetObject(aObject : TObject; aObjectName : string) : TObject;
     function GetObjectInstance(aList: TObjectList<TObject>): TObject;
+    function GetProperty(aObject : TObject; aEntityFieldName : string) : TGetProperty;
     procedure IncCollectionInJsonObject(aCollection: TObject; aCollectionName : string; aJSONObject :TJSONObject);
     procedure InternalClearObject(aObject: TObject);
     procedure JSONObjectToObject(aJSONObject : TJSONObject; aObject : TObject);
@@ -378,6 +379,8 @@ procedure TOrionReflections.JSONObjectToObject(aJSONObject: TJSONObject; aObject
 var
   RttiType : TRttiType;
   RttiProperty : TRttiProperty;
+  JSONValue : TJSONValue;
+  StringValue : string;
 begin
   ClearObject(aObject);
   RttiType := TRttiContext.Create.GetType(aObject.ClassInfo);
@@ -393,7 +396,16 @@ begin
         if isDate(RttiProperty) then
           RttiProperty.SetValue(Pointer(aObject), ISO8601ToDate(aJSONObject.GetValue<string>(GetFormattedPropertyName(RttiProperty.Name))))
         else
-          RttiProperty.SetValue(Pointer(aObject), aJSONObject.GetValue<Extended>(GetFormattedPropertyName(RttiProperty.Name)));
+        begin
+//          if TFormatSettings.Create.CurrencyString = 'R$' then
+//          begin
+//            JSONValue := aJSONObject.GetValue(GetFormattedPropertyName(RttiProperty.Name));
+//            StringValue := FloatToStr(FloatValue);
+//            RttiProperty.SetValue(Pointer(Self), StrToFloat(StringValue.Replace('.', ',', [rfReplaceAll])));
+//          end
+//          else
+            RttiProperty.SetValue(Pointer(aObject), aJSONObject.GetValue<Extended>(GetFormattedPropertyName(RttiProperty.Name)));
+        end;
       end;
       tkString: RttiProperty.SetValue(Pointer(aObject), aJSONObject.GetValue<string>(GetFormattedPropertyName(RttiProperty.Name)));
       tkSet: ;
