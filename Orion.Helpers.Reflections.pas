@@ -40,7 +40,7 @@ type
     function GetObject(aObject : TObject; aObjectName : string) : TObject;
     function GetObjectInstance(aList: TObjectList<TObject>): TObject;
     function GetProperty(aObject : TObject; aEntityFieldName : string) : TGetProperty;
-    procedure IncCollectionInJsonObject(aCollection: TObject; aCollectionName : string; aJSONObject :TJSONObject);
+    procedure IncCollectionInJsonObject(aCollection: TObject; aCollectionName : string; aJSONObject :TJSONObject; aReflection : TOrionReflections);
     procedure InternalClearObject(aObject: TObject);
     procedure JSONObjectToObject(aJSONObject : TJSONObject; aObject : TObject);
     procedure ObjectToObject(aSource, aTarget: TObject);
@@ -302,19 +302,49 @@ begin
 end;
 
 procedure TOrionReflections.IncCollectionInJsonObject(aCollection: TObject; aCollectionName : string;
-  aJSONObject: TJSONObject);
+  aJSONObject: TJSONObject; aReflection : TOrionReflections);
 var
   Collection : TObjectList<TObject>;
   Obj: TObject;
   JSONObject : TJSONObject;
   JSONArray : TJSONArray;
+  Objects : TDictionary<string, TObject>;
+  Collections : TDictionary<string, TObjectList<TObject>>;
 begin
+  Objects := nil;
+  Collections := nil;
   Collection := TObjectList<TObject>(aCollection);
   JSONArray := TJSONArray.Create;
   for Obj in Collection do
   begin
     JSONObject := TJSONObject.Create;
     ObjectToJSONObject(Obj, JSONObject);
+
+    if aReflection.ContainObject(Obj) then
+    begin
+      Objects := aReflection.GetObjects(Obj);
+      try
+        for var Key in Objects.Keys do
+        begin
+          var JSONObj := TJSONObject.Create;
+          aReflection.ObjectToJSONObject(Objects.Items[Key], JSONObject);
+          JSONObject.AddPair(GetFormattedPropertyName(Key), JSONObj);
+        end;
+      finally
+        Objects.Free;
+      end;
+    end;
+
+    if aReflection.ContainsCollections(Obj) then
+    begin
+      Collections := aReflection.GetCollections(Obj);
+      try
+        for var Key in Collections.Keys do
+          aReflection.IncCollectionInJsonObject(Collections.Items[Key], Key, JSONObject, aReflection);
+      finally
+        Collections.Free;
+      end;
+    end;
     JSONArray.AddElement(JSONObject);
   end;
   aJSONObject.AddPair(GetFormattedPropertyName(aCollectionName), JSONArray);
@@ -397,13 +427,9 @@ begin
           RttiProperty.SetValue(Pointer(aObject), ISO8601ToDate(aJSONObject.GetValue<string>(GetFormattedPropertyName(RttiProperty.Name))))
         else
         begin
-//          if TFormatSettings.Create.CurrencyString = 'R$' then
-//          begin
-//            JSONValue := aJSONObject.GetValue(GetFormattedPropertyName(RttiProperty.Name));
-//            StringValue := FloatToStr(FloatValue);
-//            RttiProperty.SetValue(Pointer(Self), StrToFloat(StringValue.Replace('.', ',', [rfReplaceAll])));
-//          end
-//          else
+          if TFormatSettings.Create.CurrencyString = 'R$' then
+            RttiProperty.SetValue(Pointer(Self), StrToFloat(aJSONObject.GetValue<string>(GetFormattedPropertyName(RttiProperty.Name)).Replace('.', ',', [rfReplaceAll])))
+          else
             RttiProperty.SetValue(Pointer(aObject), aJSONObject.GetValue<Extended>(GetFormattedPropertyName(RttiProperty.Name)));
         end;
       end;

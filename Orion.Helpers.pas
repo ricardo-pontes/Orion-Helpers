@@ -255,7 +255,7 @@ begin
     begin
       Collections := Reflections.GetCollections(Self);
       for Key in Collections.Keys do
-        Reflections.IncCollectionInJsonObject(Collections.Items[Key], Key, Result);
+        Reflections.IncCollectionInJsonObject(Collections.Items[Key], Key, Result, Reflections);
     end;
   finally
     FreeAndNil(Reflections);
